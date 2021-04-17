@@ -40,7 +40,7 @@ class Apm
      */
     public function setStartTime(string $name)
     {
-        self::$commandTimes[$name] = Carbon::now()->toDateTimeString();
+        self::$commandTimes[$name] = microtime(true);
     }
 
     /**
@@ -50,7 +50,7 @@ class Apm
     public function getStartTime(string $name)
     {
         if (!isset(self::$commandTimes[$name])) {
-            return Carbon::now()->toDateTimeString();
+            return 0;
         }
 
         $duration = self::$commandTimes[$name];

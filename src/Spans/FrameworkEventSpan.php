@@ -44,7 +44,7 @@ class FrameworkEventSpan implements SpanContract
     public function getSpanData(): array
     {
         return [
-            'time' => $this->time,
+            'time' => $this->time - $this->start,
             'start' => $this->start,
             'event' => $this->event
         ];

@@ -93,7 +93,7 @@ class CommandSpan implements SpanContract
             'command' => $this->command,
             'exitCode' => $this->exitCode,
             'start' => $this->start,
-            'time' => $this->time
+            'time' => $this->time - $this->start
         ];
     }
 }
