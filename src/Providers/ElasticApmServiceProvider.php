@@ -78,19 +78,19 @@ class ElasticApmServiceProvider extends ServiceProvider
         });
     }
 
-    private function listenExecutedRedis()
-    {
-        app('redis')->enableEvents();
-        app('redis')->listen(
-            function (CommandExecuted $command) {
-                $cmd = $command->command;
-                $connection = $command->connectionName;
-                $duration = $command->time;
-
-                app('elastic-apm')->addSpan(new RedisSpan($connection, $cmd, $duration));
-            }
-        );
-    }
+//    private function listenExecutedRedis()
+//    {
+//        app('redis')->enableEvents();
+//        app('redis')->listen(
+//            function (CommandExecuted $command) {
+//                $cmd = $command->command;
+//                $connection = $command->connectionName;
+//                $duration = $command->time;
+//
+//                app('elastic-apm')->addSpan(new RedisSpan($connection, $cmd, $duration));
+//            }
+//        );
+//    }
 
     private function registerApmAgent()
     {
