@@ -45,7 +45,10 @@ class Apm
 
     public static function getMicrotime($number = null)
     {
-        return round($number ?? microtime() * 1000, 3);
+        if ($number === null) {
+            $number = microtime();
+        }
+        return round($number * 1000, 3);
     }
 
     /**
