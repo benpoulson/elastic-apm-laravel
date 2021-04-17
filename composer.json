@@ -1,0 +1,49 @@
+{
+    "name": "benpoulson/elastic-apm-laravel",
+    "description": "benpoulson/elastic-apm-laravel - A wrapper for Elastic APM in Laravel",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ben Poulson",
+            "email": "ben.poulson@protonmail.ch"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "ext-elastic_apm": "*",
+        "php": "^7.2|^8.0",
+        "illuminate/support": "^6.0|^7.0|^8.0"
+    },
+    "repositories":[
+        {
+            "type": "vcs",
+            "url": "https://github.com/elastic/apm-agent-php.git"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Itb\\ElasticApm\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Itb\\ElasticApm\\Providers\\ElasticApmServiceProvider"
+            ],
+            "aliases": {
+                "Agent": "Apm"
+            }
+        }
+    },
+    "require-dev": {
+        "squizlabs/php_codesniffer": "^3.5",
+        "elastic/apm-agent": "dev-master",
+        "laravel/framework": "^6.0"
+    },
+    "scripts": {
+        "test": [
+            "./vendor/bin/phpcs --standard=PSR12 ./src"
+        ]
+    }
+}
