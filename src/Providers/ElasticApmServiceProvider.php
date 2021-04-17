@@ -39,7 +39,7 @@ class ElasticApmServiceProvider extends ServiceProvider
         if (config('elastic-apm.active')) {
             $this->listenLaravelEvents();
             $this->listenExecutedQueries();
-            $this->listenExecutedRedis();
+//            $this->listenExecutedRedis();
             $this->listenArtisanCommands();
         }
     }
