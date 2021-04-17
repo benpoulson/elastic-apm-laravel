@@ -44,7 +44,7 @@ class RedisSpan implements SpanContract
 
     public function getType(): string
     {
-        return config('elastic-apm.types.redis', 'redis');
+        return 'redis';
     }
 
     public function getSubType(): string

@@ -39,7 +39,7 @@ class HttpRequestSpan implements SpanContract
 
     public function getType(): string
     {
-        return config('elastic-apm.types.http', 'external');
+        return 'external';
     }
 
     public function getSubType(): string

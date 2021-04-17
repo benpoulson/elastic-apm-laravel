@@ -4,9 +4,12 @@ namespace Itb\ElasticApm\Providers;
 
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Event;
 use Itb\ElasticApm\Apm;
 use Itb\ElasticApm\Spans\CommandSpan;
+use Itb\ElasticApm\Spans\FrameworkEventSpan;
 use Itb\ElasticApm\Spans\QuerySpan;
 use Itb\ElasticApm\Spans\RedisSpan;
 use Illuminate\Database\Events\QueryExecuted;
@@ -34,22 +37,16 @@ class ElasticApmServiceProvider extends ServiceProvider
         $this->mergeConfigFrom($source, 'elastic-apm');
 
         if (config('elastic-apm.active')) {
-            if (config('elastic-apm.send_queries')) {
-                $this->listenExecutedQueries();
-            }
-            if (config('elastic-apm.send_redis')) {
-                $this->listenExecutedRedis();
-            }
-            if (config('elastic-apm.send_artisan')) {
-                $this->listenArtisanCommands();
-            }
+            $this->listenLaravelEvents();
+            $this->listenExecutedQueries();
+            $this->listenExecutedRedis();
+            $this->listenArtisanCommands();
         }
     }
 
     public function register()
     {
         $this->registerApmAgent();
-        $this->registerMiddleware();
     }
 
     private function listenExecutedQueries()
@@ -70,13 +67,13 @@ class ElasticApmServiceProvider extends ServiceProvider
         Event::listen(CommandStarting::class, function (CommandStarting $event) {
             /** @var Apm $apm */
             $apm = app('elastic-apm');
-            $apm->startCommandTimer($event->command);
+            $apm->startTimer($event->command);
         });
 
         Event::listen(CommandFinished::class, function (CommandFinished $event) {
             /** @var Apm $apm */
             $apm = app('elastic-apm');
-            $time = $apm->stopCommandTimer($event->command);
+            $time = $apm->stopTimer($event->command);
             $apm->addSpan(new CommandSpan($event->command, $event->input, $event->output, $event->exitCode, $time));
         });
     }
@@ -112,5 +109,64 @@ class ElasticApmServiceProvider extends ServiceProvider
             Apm::class,
             'elastic-apm',
         ];
+    }
+
+    private function listenLaravelEvents()
+    {
+        /** @var Apm $apm */
+        $apm = app('elastic-apm');
+        $apm->startTimer('app_boot');
+
+        $this->app->booting(function () use ($apm) {
+            $apm->startTimer('laravel_boot');
+            $appBootTime = $apm->stopTimer('app_boot');
+            $apm->addSpan(new FrameworkEventSpan("App Boot", $appBootTime, LARAVEL_START));
+        });
+
+        $this->app->booted(function () use ($apm) {
+            $laravelBootTime = $apm->stopTimer('laravel_boot');
+            $apm->addSpan(new FrameworkEventSpan("Laravel Boot", $laravelBootTime));
+        });
+
+        $this->app->booted(function () use ($apm) {
+            $apm->startTimer('route_matching');
+        });
+
+        Event::listen(RouteMatched::class, function () use ($apm) {
+            $apm->startTimer('request_handled');
+            $routeMatchingTime = $apm->stopTimer('route_matching');
+            $apm->addSpan(new FrameworkEventSpan("Route Matching", $routeMatchingTime));
+        });
+
+        Event::listen(RequestHandled::class, function () use ($apm) {
+            // Some middlewares might return a response
+            // before the RouteMatched has been dispatched
+            $requestHandledTime = $apm->stopTimer('request_handled');
+            $apm->addSpan(new FrameworkEventSpan($this->getController(), $requestHandledTime));
+        });
+    }
+
+    protected function getController(): ?string
+    {
+        $router = $this->app['router'];
+
+        $route = $router->current();
+        $controller = $route ? $route->getActionName() : null;
+
+        if ($controller instanceof \Closure) {
+            $controller = 'anonymous function';
+        } elseif (is_object($controller)) {
+            $controller = 'instance of ' . get_class($controller);
+        } elseif (is_array($controller) && 2 == count($controller)) {
+            if (is_object($controller[0])) {
+                $controller = get_class($controller[0]) . '->' . $controller[1];
+            } else {
+                $controller = $controller[0] . '::' . $controller[1];
+            }
+        } elseif (!is_string($controller)) {
+            $controller = null;
+        }
+
+        return $controller;
     }
 }

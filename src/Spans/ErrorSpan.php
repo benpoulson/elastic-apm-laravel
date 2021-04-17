@@ -32,7 +32,7 @@ class ErrorSpan implements SpanContract
 
     public function getType(): string
     {
-        return config('elastic-apm.types.error', 'error');
+        return 'error';
     }
 
     public function getSubType(): string

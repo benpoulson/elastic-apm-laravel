@@ -28,7 +28,7 @@ class BackgroundJobSpan implements SpanContract
 
     public function getType(): string
     {
-        return config('elastic-apm.types.background', 'job');
+        return 'job';
     }
 
     public function getSubType(): string

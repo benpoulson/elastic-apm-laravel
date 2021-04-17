@@ -25,7 +25,7 @@ class RequestProcessedSpan implements SpanContract
 
     public function getType(): string
     {
-        return config('elastic-apm.types.request', 'request');
+        return 'request';
     }
 
     public function getSubType(): string

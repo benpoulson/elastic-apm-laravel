@@ -37,7 +37,7 @@ class Apm
     /**
      * @param string $name
      */
-    public function startCommandTimer(string $name)
+    public function startTimer(string $name)
     {
         self::$commandTimes[$name] = microtime(true);
     }
@@ -46,7 +46,7 @@ class Apm
      * @param string $name
      * @return int
      */
-    public function stopCommandTimer(string $name)
+    public function stopTimer(string $name)
     {
         if (!isset(self::$commandTimes[$name])) {
             return 0;
