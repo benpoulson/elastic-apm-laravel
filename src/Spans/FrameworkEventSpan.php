@@ -12,13 +12,13 @@ class FrameworkEventSpan implements SpanContract
 
     private $time;
 
-    private $startTime;
+    private $start;
 
-    public function __construct(string $event, int $time, int $startTime = null)
+    public function __construct(string $event, string $startTime, string $endTime)
     {
         $this->event = $event;
-        $this->time = $time;
-        $this->startTime = $startTime;
+        $this->time = $endTime;
+        $this->start = $startTime;
     }
 
     public function getName(): string
@@ -43,16 +43,10 @@ class FrameworkEventSpan implements SpanContract
 
     public function getSpanData(): array
     {
-        $data = [
+        return [
             'time' => $this->time,
+            'start' => $this->start,
             'event' => $this->event
         ];
-
-        // Was a start time provided?
-        if ($this->startTime) {
-            $data['start'] = $this->startTime;
-        }
-
-        return $data;
     }
 }

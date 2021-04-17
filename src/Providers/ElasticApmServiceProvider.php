@@ -2,6 +2,7 @@
 
 namespace Itb\ElasticApm\Providers;
 
+use Carbon\Carbon;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Foundation\Http\Events\RequestHandled;
@@ -38,7 +39,7 @@ class ElasticApmServiceProvider extends ServiceProvider
 
         if (config('elastic-apm.active')) {
             $this->listenLaravelEvents();
-            $this->listenExecutedQueries();
+//            $this->listenExecutedQueries();
 //            $this->listenExecutedRedis();
             $this->listenArtisanCommands();
         }
@@ -56,7 +57,6 @@ class ElasticApmServiceProvider extends ServiceProvider
                 $sql = $query->sql;
                 $connection = $query->connection->getName();
                 $duration = $query->time;
-
                 app('elastic-apm')->addSpan(new QuerySpan($connection, $sql, $duration));
             }
         );
@@ -67,14 +67,21 @@ class ElasticApmServiceProvider extends ServiceProvider
         Event::listen(CommandStarting::class, function (CommandStarting $event) {
             /** @var Apm $apm */
             $apm = app('elastic-apm');
-            $apm->startTimer($event->command);
+            $apm->setStartTime($event->command);
         });
 
         Event::listen(CommandFinished::class, function (CommandFinished $event) {
             /** @var Apm $apm */
             $apm = app('elastic-apm');
-            $time = $apm->stopTimer($event->command);
-            $apm->addSpan(new CommandSpan($event->command, $event->input, $event->output, $event->exitCode, $time));
+            $time = $apm->getStartTime($event->command);
+            $apm->addSpan(new CommandSpan(
+                $event->command,
+                $event->input,
+                $event->output,
+                $event->exitCode,
+                $time,
+                Carbon::now()->toDateTimeString()
+            ));
         });
     }
 
@@ -115,34 +122,42 @@ class ElasticApmServiceProvider extends ServiceProvider
     {
         /** @var Apm $apm */
         $apm = app('elastic-apm');
-        $apm->startTimer('app_boot');
+        $apm->setStartTime('app_boot');
 
         $this->app->booting(function () use ($apm) {
-            $apm->startTimer('laravel_boot');
-            $appBootTime = $apm->stopTimer('app_boot');
-            $apm->addSpan(new FrameworkEventSpan("App Boot", $appBootTime, LARAVEL_START));
+            $apm->setStartTime('laravel_boot');
+            $appBootTime = $apm->getStartTime('app_boot');
+            $apm->addSpan(new FrameworkEventSpan("App Boot", LARAVEL_START, $appBootTime));
         });
 
         $this->app->booted(function () use ($apm) {
-            $laravelBootTime = $apm->stopTimer('laravel_boot');
-            $apm->addSpan(new FrameworkEventSpan("Laravel Boot", $laravelBootTime));
+            $laravelBootTime = $apm->getStartTime('laravel_boot');
+            $apm->addSpan(new FrameworkEventSpan("Laravel Boot", $laravelBootTime, Carbon::now()->toDateTimeString()));
         });
 
         $this->app->booted(function () use ($apm) {
-            $apm->startTimer('route_matching');
+            $apm->setStartTime('route_matching');
         });
 
         Event::listen(RouteMatched::class, function () use ($apm) {
-            $apm->startTimer('request_handled');
-            $routeMatchingTime = $apm->stopTimer('route_matching');
-            $apm->addSpan(new FrameworkEventSpan("Route Matching", $routeMatchingTime));
+            $apm->setStartTime('request_handled');
+            $routeMatchingTime = $apm->getStartTime('route_matching');
+            $apm->addSpan(new FrameworkEventSpan(
+                "Route Matching",
+                $routeMatchingTime,
+                Carbon::now()->toDateTimeString()
+            ));
         });
 
         Event::listen(RequestHandled::class, function () use ($apm) {
             // Some middlewares might return a response
             // before the RouteMatched has been dispatched
-            $requestHandledTime = $apm->stopTimer('request_handled');
-            $apm->addSpan(new FrameworkEventSpan($this->getController(), $requestHandledTime));
+            $requestHandledTime = $apm->getStartTime('request_handled');
+            $apm->addSpan(new FrameworkEventSpan(
+                $this->getController(),
+                $requestHandledTime,
+                Carbon::now()->toDateTimeString()
+            ));
         });
     }
 

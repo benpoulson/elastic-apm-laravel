@@ -35,9 +35,12 @@ class CommandSpan implements SpanContract
     private $exitCode;
 
     /**
-     * @var int
+     * @var string
      */
     private $time;
+
+    /** @var string */
+    private $start;
 
     /**
      * CommandSpan constructor.
@@ -45,19 +48,22 @@ class CommandSpan implements SpanContract
      * @param InputInterface $input
      * @param OutputInterface $output
      * @param int $exitCode
-     * @param int $time
+     * @param string $start
+     * @param string $time
      */
     public function __construct(
         string $command,
         InputInterface $input,
         OutputInterface $output,
         int $exitCode,
-        int $time
+        string $start,
+        string $time
     ) {
         $this->command = $command;
         $this->input = $input;
         $this->output = $output;
         $this->exitCode = $exitCode;
+        $this->start = $start;
         $this->time = $time;
     }
 
@@ -86,6 +92,7 @@ class CommandSpan implements SpanContract
         return [
             'command' => $this->command,
             'exitCode' => $this->exitCode,
+            'start' => $this->start,
             'time' => $this->time
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace Itb\ElasticApm;
 
+use Carbon\Carbon;
 use Itb\ElasticApm\Contracts\SpanContract;
 use Elastic\Apm\ElasticApm;
 use Elastic\Apm\TransactionInterface;
@@ -37,22 +38,22 @@ class Apm
     /**
      * @param string $name
      */
-    public function startTimer(string $name)
+    public function setStartTime(string $name)
     {
-        self::$commandTimes[$name] = microtime(true);
+        self::$commandTimes[$name] = Carbon::now()->toDateTimeString();
     }
 
     /**
      * @param string $name
      * @return int
      */
-    public function stopTimer(string $name)
+    public function getStartTime(string $name)
     {
         if (!isset(self::$commandTimes[$name])) {
-            return 0;
+            return Carbon::now()->toDateTimeString();
         }
 
-        $duration = microtime(true) - self::$commandTimes[$name];
+        $duration = self::$commandTimes[$name];
         unset(self::$commandTimes[$name]);
 
         return $duration;
