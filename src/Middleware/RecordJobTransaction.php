@@ -34,11 +34,11 @@ class RecordJobTransaction
 
         // Set span for the job it's processing
         $jobClass = get_class($job);
-        $apm->addSpan(new BackgroundJobSpan($jobClass, 'processing', microtime(true)));
+        $apm->addSpan(new BackgroundJobSpan($jobClass, 'processing'));
         $response = $next($job);
 
         // set span for the class which is processed
-        $apm->addSpan(new BackgroundJobSpan($jobClass, 'processed', microtime(true)));
+        $apm->addSpan(new BackgroundJobSpan($jobClass, 'processed'));
 
         $apm->endTransaction();
 

@@ -88,7 +88,7 @@ class RecordRequestTransaction
                     'now' => now()->toDateTimeString(),
                     'status_code' => $response->getStatusCode(),
                     'path' => $request->path(),
-                    'processing_time' => microtime(true) - LARAVEL_START,
+                    'processing_time' => Apm::getMicrotime() - Apm::getMicrotime(LARAVEL_START),
                     'user_agent' => $request->userAgent(),
                 ]
             )

@@ -40,7 +40,12 @@ class Apm
      */
     public function setStartTime(string $name)
     {
-        self::$commandTimes[$name] = microtime(true);
+        self::$commandTimes[$name] = Apm::getMicrotime();
+    }
+
+    public static function getMicrotime($number = null)
+    {
+        return round($number ?? microtime() * 1000, 3);
     }
 
     /**

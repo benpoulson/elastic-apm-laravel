@@ -20,18 +20,13 @@ class RecordGuzzleTransaction
     public function __invoke(callable $handler)
     {
         return function (RequestInterface $request, array $options) use ($handler) {
-            $now = microtime(true);
+            $now = Apm::getMicrotime();
 
             return $handler($request, $options)->then(
                 $this->handleSuccess($request, $options, $now),
                 $this->handleFailure($request, $options, $now)
             );
         };
-    }
-
-    private function duration($then)
-    {
-        return (microtime(true) - $then) * 1000;
     }
 
     private function handleSuccess(RequestInterface $request, array $options, $then): callable
@@ -41,7 +36,7 @@ class RecordGuzzleTransaction
             $host = $request->getUri()->getHost();
             $path = $request->getUri()->getPath();
             $statusCode = $response->getStatusCode();
-            $duration = $this->duration($then);
+            $duration = Apm::getMicrotime() - $then;
 
             /** @var Apm $apm */
             $apm = app('elastic-apm');
@@ -69,7 +64,7 @@ class RecordGuzzleTransaction
             $method = $request->getMethod();
             $host = $request->getUri()->getHost();
             $path = $request->getUri()->getPath();
-            $duration = $this->duration($then);
+            $duration = Apm::getMicrotime() - $then;
 
             app('elastic-apm')->addSpan(
                 new HttpRequestSpan(

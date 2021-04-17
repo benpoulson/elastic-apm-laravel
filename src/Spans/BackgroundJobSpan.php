@@ -2,6 +2,7 @@
 
 namespace Itb\ElasticApm\Spans;
 
+use Itb\ElasticApm\Apm;
 use Itb\ElasticApm\Contracts\SpanContract;
 
 class BackgroundJobSpan implements SpanContract
@@ -14,11 +15,11 @@ class BackgroundJobSpan implements SpanContract
 
     private $state;
 
-    public function __construct(string $job, string $state, string $time)
+    public function __construct(string $job, string $state)
     {
         $this->job = $job;
         $this->state = $state;
-        $this->time = $time;
+        $this->time = Apm::getMicrotime();
     }
 
     public function getName(): string
