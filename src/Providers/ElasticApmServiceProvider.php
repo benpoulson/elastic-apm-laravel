@@ -127,12 +127,12 @@ class ElasticApmServiceProvider extends ServiceProvider
         $this->app->booting(function () use ($apm) {
             $apm->setStartTime('laravel_boot');
             $appBootTime = $apm->getStartTime('app_boot');
-            $apm->addSpan(new FrameworkEventSpan("App Boot", Apm::getMicrotime(LARAVEL_START), $appBootTime));
+            $apm->addSpan(new FrameworkEventSpan("App Boot", $appBootTime)); // Apm::getMicrotime(LARAVEL_START)
         });
 
         $this->app->booted(function () use ($apm) {
             $laravelBootTime = $apm->getStartTime('laravel_boot');
-            $apm->addSpan(new FrameworkEventSpan("Laravel Boot", $laravelBootTime, microtime(true)));
+            $apm->addSpan(new FrameworkEventSpan("Laravel Boot", $laravelBootTime));
         });
 
         $this->app->booted(function () use ($apm) {
@@ -144,8 +144,7 @@ class ElasticApmServiceProvider extends ServiceProvider
             $routeMatchingTime = $apm->getStartTime('route_matching');
             $apm->addSpan(new FrameworkEventSpan(
                 "Route Matching",
-                $routeMatchingTime,
-                Apm::getMicrotime()
+                $routeMatchingTime
             ));
         });
 
@@ -155,8 +154,7 @@ class ElasticApmServiceProvider extends ServiceProvider
             $requestHandledTime = $apm->getStartTime('request_handled');
             $apm->addSpan(new FrameworkEventSpan(
                 $this->getController(),
-                $requestHandledTime,
-                Apm::getMicrotime()
+                $requestHandledTime
             ));
         });
     }

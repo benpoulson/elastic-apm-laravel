@@ -2,6 +2,7 @@
 
 namespace Itb\ElasticApm\Spans;
 
+use Itb\ElasticApm\Apm;
 use Itb\ElasticApm\Contracts\SpanContract;
 
 class FrameworkEventSpan implements SpanContract
@@ -14,10 +15,10 @@ class FrameworkEventSpan implements SpanContract
 
     private $start;
 
-    public function __construct(string $event, string $startTime, string $endTime)
+    public function __construct(string $event, string $startTime)
     {
         $this->event = $event;
-        $this->time = $endTime;
+        $this->time = Apm::getMicrotime() - $startTime;
         $this->start = $startTime;
     }
 

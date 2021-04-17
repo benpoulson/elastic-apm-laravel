@@ -35,6 +35,11 @@ class Apm
         $this->getTransaction()->end();
     }
 
+    public static function getMicrotime($number = null)
+    {
+        return round(($number ?? microtime(true)) * 1000, 3);
+    }
+
     /**
      * @param string $name
      */
@@ -42,12 +47,6 @@ class Apm
     {
         self::$commandTimes[$name] = Apm::getMicrotime();
     }
-
-    public static function getMicrotime($number = null)
-    {
-        return round(($number ?? microtime(true)) * 1000, 3);
-    }
-
     /**
      * @param string $name
      * @return int
