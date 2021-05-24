@@ -2,20 +2,19 @@
 
 namespace Itb\ElasticApm;
 
-use Carbon\Carbon;
-use Itb\ElasticApm\Contracts\SpanContract;
 use Elastic\Apm\ElasticApm;
 use Elastic\Apm\TransactionInterface;
+use Illuminate\Support\Facades\Log;
+use Itb\ElasticApm\Contracts\SpanContract;
 
+/**
+ * Class Apm
+ * @package Itb\ElasticApm
+ */
 class Apm
 {
     /** @var self */
     private static $instance = null;
-
-    /**
-     * @var array
-     */
-    private static $commandTimes = [];
 
     /**
      * @return Apm
@@ -35,46 +34,22 @@ class Apm
         $this->getTransaction()->end();
     }
 
-    public static function getMicrotime($number = null)
-    {
-        return round(($number ?? microtime(true)) * 1000, 3);
-    }
-
-    /**
-     * @param string $name
-     */
-    public function setStartTime(string $name)
-    {
-        self::$commandTimes[$name] = Apm::getMicrotime();
-    }
-    /**
-     * @param string $name
-     * @return int
-     */
-    public function getStartTime(string $name)
-    {
-        if (!isset(self::$commandTimes[$name])) {
-            return 0;
-        }
-
-        $duration = self::$commandTimes[$name];
-        unset(self::$commandTimes[$name]);
-
-        return $duration;
-    }
-
     /**
      * @param SpanContract $span
      */
     public function addSpan(SpanContract $span)
     {
-        $childSpan = $this->getTransaction()->beginChildSpan($span->getName(), $span->getType(), $span->getSubType());
-        if ($labels = $span->getLabels()) {
-            foreach ($labels as $key => $value) {
-                $childSpan->context()->setLabel($key, $value);
-            }
+        $labels = $span->getLabels();
+        $timestamp = $this->getTransaction()->getTimestamp();
+        $childSpan = $this->getTransaction()->beginChildSpan($span->getName(), $span->getType(), $span->getSubType(), null, $labels['start']);
+        $labels['duration'] = $labels['duration'] - $labels['start'];
+        $labels['start'] = $labels['start'] - $timestamp;
+        $labels['duration'] /= 1000;
+        $labels['start'] /= 1000;
+        foreach ($labels as $key => $value) {
+            $childSpan->context()->setLabel($key, $value);
         }
-        $childSpan->setAction(json_encode($span->getSpanData()));
-        $childSpan->end();
+        $childSpan->setAction(json_encode($labels + $span->getSpanData()));
+        $childSpan->end($labels['duration']);
     }
 }

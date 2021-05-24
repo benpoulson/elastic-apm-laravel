@@ -19,7 +19,7 @@ class BackgroundJobSpan implements SpanContract
     {
         $this->job = $job;
         $this->state = $state;
-        $this->time = Apm::getMicrotime();
+        $this->time = microtime();
     }
 
     public function getName(): string

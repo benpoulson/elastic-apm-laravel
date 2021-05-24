@@ -2,21 +2,17 @@
 
 namespace Itb\ElasticApm\Providers;
 
-use Carbon\Carbon;
-use Illuminate\Console\Events\CommandFinished;
-use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Foundation\Application as LaravelApplication;
+use Illuminate\Foundation\Bootstrap\BootProviders;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\ServiceProvider;
 use Itb\ElasticApm\Apm;
-use Itb\ElasticApm\Spans\CommandSpan;
+use Itb\ElasticApm\Services\TimerService;
 use Itb\ElasticApm\Spans\FrameworkEventSpan;
 use Itb\ElasticApm\Spans\QuerySpan;
-use Itb\ElasticApm\Spans\RedisSpan;
-use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Foundation\Application as LaravelApplication;
-use Illuminate\Redis\Events\CommandExecuted;
-use Illuminate\Support\ServiceProvider;
 use Laravel\Lumen\Application as LumenApplication;
 
 /**
@@ -43,46 +39,42 @@ class ElasticApmServiceProvider extends ServiceProvider
 //            $this->listenExecutedRedis();
             $this->listenArtisanCommands();
         }
+
+        event('boot');
     }
 
     public function register()
     {
-        $this->registerApmAgent();
+        $this->app->singleton(Apm::class, function ($app) {
+            return Apm::instance();
+        });
+        $this->app->alias(Apm::class, 'elastic-apm');
     }
 
     private function listenExecutedQueries()
     {
-        app('db')->listen(
-            function (QueryExecuted $query) {
-                $sql = $query->sql;
-                $connection = $query->connection->getName();
-                $duration = $query->time;
-                app('elastic-apm')->addSpan(new QuerySpan($connection, $sql, $duration));
-            }
-        );
+        app('db')->listen(function (QueryExecuted $query) {
+            $sql = $query->sql;
+            $connection = $query->connection->getName();
+            $duration = $query->time;
+            app('elastic-apm')->addSpan(new QuerySpan($connection, $sql, $duration));
+        });
     }
 
     private function listenArtisanCommands()
     {
-        Event::listen(CommandStarting::class, function (CommandStarting $event) {
-            /** @var Apm $apm */
-            $apm = app('elastic-apm');
-            $apm->setStartTime($event->command);
-        });
-
-        Event::listen(CommandFinished::class, function (CommandFinished $event) {
-            /** @var Apm $apm */
-            $apm = app('elastic-apm');
-            $time = $apm->getStartTime($event->command);
-            $apm->addSpan(new CommandSpan(
-                $event->command,
-                $event->input,
-                $event->output,
-                $event->exitCode,
-                $time,
-                Apm::getMicrotime()
-            ));
-        });
+//        Event::listen(CommandStarting::class, function (CommandStarting $event) {
+//            /** @var Apm $apm */
+//            $apm = app('elastic-apm');
+//            $apm->setStartTime($event->command);
+//        });
+//
+//        Event::listen(CommandFinished::class, function (CommandFinished $event) {
+//            /** @var Apm $apm */
+//            $apm = app('elastic-apm');
+//            $time = $apm->getStartTime($event->command);
+//            $apm->addSpan(new CommandSpan($event->command, $event->input, $event->output, $event->exitCode, $time, microtime(true)));
+//        });
     }
 
 //    private function listenExecutedRedis()
@@ -99,16 +91,6 @@ class ElasticApmServiceProvider extends ServiceProvider
 //        );
 //    }
 
-    private function registerApmAgent()
-    {
-        $this->app->singleton(
-            Apm::class,
-            function ($app) {
-                return Apm::instance();
-            }
-        );
-        $this->app->alias(Apm::class, 'elastic-apm');
-    }
 
     public function provides()
     {
@@ -122,41 +104,56 @@ class ElasticApmServiceProvider extends ServiceProvider
     {
         /** @var Apm $apm */
         $apm = app('elastic-apm');
-        $apm->setStartTime('app_boot');
 
-        $this->app->booting(function () use ($apm) {
-            $apm->setStartTime('laravel_boot');
-            $appBootTime = $apm->getStartTime('app_boot');
-            $apm->addSpan(new FrameworkEventSpan("App Boot", $appBootTime)); // Apm::getMicrotime(LARAVEL_START)
+        TimerService::init();
+
+        Event::listen('boot', function () {
+            TimerService::startLaravel();
+
+        });
+
+        $this->app->booting(function () {
+            TimerService::start('Boot');
         });
 
         $this->app->booted(function () use ($apm) {
-            $laravelBootTime = $apm->getStartTime('laravel_boot');
-            $apm->addSpan(new FrameworkEventSpan("Laravel Boot", $laravelBootTime));
+            TimerService::finish('Boot');
+            TimerService::start('route');
         });
 
-        $this->app->booted(function () use ($apm) {
-            $apm->setStartTime('route_matching');
+        Event::listen(RouteMatched::class, function () {
+            TimerService::finish('Route');
+            TimerService::start('Request');
         });
 
-        Event::listen(RouteMatched::class, function () use ($apm) {
-            $apm->setStartTime('request_handled');
-            $routeMatchingTime = $apm->getStartTime('route_matching');
-            $apm->addSpan(new FrameworkEventSpan(
-                "Route Matching",
-                $routeMatchingTime
-            ));
+        /** @codeCoverageIgnoreStart */
+        Event::listen('kernel.handled', function () {
+            TimerService::finish('Request');
+            TimerService::start('Response');
+        });
+        /** @codeCoverageIgnoreEnd */
+
+        Event::listen(RequestHandled::class, function () {
+            TimerService::finish('Request');
+            TimerService::start('Response');
         });
 
-        Event::listen(RequestHandled::class, function () use ($apm) {
-            // Some middlewares might return a response
-            // before the RouteMatched has been dispatched
-            $requestHandledTime = $apm->getStartTime('request_handled');
-            $apm->addSpan(new FrameworkEventSpan(
-                $this->getController(),
-                $requestHandledTime
-            ));
+        $this->app->afterBootstrapping(BootProviders::class, function () use ($apm) {
+            $this->app->terminating(function () use ($apm) {
+                TimerService::finish('Response');
+                TimerService::finishLaravel();
+
+                foreach (TimerService::all() as $name => $value) {
+                    $apm->addSpan(new FrameworkEventSpan($name, $value['start'], $value['finish']));
+                }
+
+                $end = number_format((int)(TimerService::getLatestFinish()) - $apm->getTransaction()->getTimestamp(), 3, '.', '');
+
+                $apm->getTransaction()->end($end / 1000);
+
+            });
         });
+
     }
 
     protected function getController(): ?string

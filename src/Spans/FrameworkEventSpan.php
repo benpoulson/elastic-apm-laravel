@@ -11,15 +11,15 @@ class FrameworkEventSpan implements SpanContract
 
     private $event;
 
-    private $time;
+    private $duration;
 
     private $start;
 
-    public function __construct(string $event, string $startTime)
+    public function __construct(string $event, $startTime, $duration)
     {
         $this->event = $event;
-        $this->time = Apm::getMicrotime() - $startTime;
         $this->start = $startTime;
+        $this->duration = $duration;
     }
 
     public function getName(): string
@@ -45,7 +45,7 @@ class FrameworkEventSpan implements SpanContract
     public function getSpanData(): array
     {
         return [
-            'time' => $this->time - $this->start,
+            'duration' => $this->duration,
             'start' => $this->start,
             'event' => $this->event
         ];
